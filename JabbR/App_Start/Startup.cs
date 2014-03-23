@@ -13,6 +13,7 @@ using Microsoft.AspNet.SignalR;
 using Microsoft.AspNet.SignalR.Configuration;
 using Microsoft.AspNet.SignalR.Hubs;
 using Microsoft.AspNet.SignalR.Infrastructure;
+using Microsoft.AspNet.SignalR.Messaging;
 using Microsoft.AspNet.SignalR.Transports;
 using Microsoft.Owin;
 using Microsoft.Owin.Security.Cookies;
@@ -21,6 +22,7 @@ using Microsoft.Owin.Security.DataProtection;
 
 using Nancy.Owin;
 
+using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using Ninject;
 using Owin;
@@ -173,6 +175,8 @@ namespace JabbR
             var hubPipeline = resolver.Resolve<IHubPipeline>();
             var configuration = resolver.Resolve<IConfigurationManager>();
 
+            bool hasBackplane = false;
+
             // Enable service bus scale out
             if (!String.IsNullOrEmpty(jabbrConfig.ServiceBusConnectionString) &&
                 !String.IsNullOrEmpty(jabbrConfig.ServiceBusTopicPrefix))
@@ -184,11 +188,27 @@ namespace JabbR
                 };
 
                 resolver.UseServiceBus(sbConfig);
+                hasBackplane = true;
             }
 
             if (jabbrConfig.ScaleOutSqlServer)
             {
                 resolver.UseSqlServer(ConfigurationManager.ConnectionStrings["Jabbr"].ConnectionString);
+                hasBackplane = true;
+            }
+
+            if (hasBackplane)
+            {
+                var jsonSerializer = resolver.Resolve<JsonSerializer>();
+                var serverIdManager = resolver.Resolve<IServerIdManager>();
+                var messageBus = resolver.Resolve<IMessageBus>();
+                var backplaneChannel = new BackplaneChannel(jsonSerializer, serverIdManager, messageBus);
+                kernel.Bind<IBackplaneChannel>().ToConstant(backplaneChannel);
+                backplaneChannel.Subscribe();
+            }
+            else
+            {
+                kernel.Bind<IBackplaneChannel>().To<NullBackplaneChannel>();
             }
 
             kernel.Bind<IConnectionManager>()

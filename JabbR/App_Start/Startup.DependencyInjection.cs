@@ -49,6 +49,10 @@ namespace JabbR
             kernel.Bind<IJabbrConfiguration>()
                   .ToConstant(configuration);
 
+            kernel.Bind<IChatServiceProxy>()
+                  .To<ChatServiceProxy>()
+                  .InSingletonScope();
+
             // We're doing this manually since we want the chat repository to be shared
             // between the chat service and the chat hub itself
             kernel.Bind<Chat>()
@@ -57,11 +61,12 @@ namespace JabbR
                       var resourceProcessor = context.Kernel.Get<ContentProviderProcessor>();
                       var recentMessageCache = context.Kernel.Get<IRecentMessageCache>();
                       var repository = context.Kernel.Get<IJabbrRepository>();
+                      var chatServiceProxy = context.Kernel.Get<IChatServiceProxy>();
                       var cache = context.Kernel.Get<ICache>();
                       var logger = context.Kernel.Get<ILogger>();
                       var settings = context.Kernel.Get<ApplicationSettings>();
 
-                      var service = new ChatService(cache, recentMessageCache, repository, settings);
+                      var service = new ChatService(cache, recentMessageCache, repository, chatServiceProxy, settings);
 
                       return new Chat(resourceProcessor,
                                       service,

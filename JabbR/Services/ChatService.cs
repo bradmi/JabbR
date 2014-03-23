@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+
+using JabbR.Infrastructure;
 using JabbR.Models;
 using JabbR.UploadHandlers;
 using Microsoft.AspNet.SignalR;
@@ -13,6 +15,7 @@ namespace JabbR.Services
     {
         private readonly IJabbrRepository _repository;
         private readonly ICache _cache;
+        private readonly IChatServiceProxy _chatServiceProxy;
         private readonly IRecentMessageCache _recentMessageCache;
         private readonly ApplicationSettings _settings;
 
@@ -290,10 +293,11 @@ namespace JabbR.Services
                                                                                 {"zanzibar","Zanzibar"}
                                                   };
 
-        public ChatService(ICache cache, IRecentMessageCache recentMessageCache, IJabbrRepository repository)
+        public ChatService(ICache cache, IRecentMessageCache recentMessageCache, IJabbrRepository repository, IChatServiceProxy chatServiceProxy)
             : this(cache,
                    recentMessageCache,
-                   repository,  
+                   repository,
+                   chatServiceProxy, 
                    ApplicationSettings.GetDefaultSettings())
         {
         }
@@ -301,11 +305,13 @@ namespace JabbR.Services
         public ChatService(ICache cache,
                            IRecentMessageCache recentMessageCache,
                            IJabbrRepository repository,
+                           IChatServiceProxy chatServiceProxy,
                            ApplicationSettings settings)
         {
             _cache = cache;
             _recentMessageCache = recentMessageCache;
             _repository = repository;
+            _chatServiceProxy = chatServiceProxy;
             _settings = settings;
         }
 
@@ -367,6 +373,9 @@ namespace JabbR.Services
 
             // Clear the cache
             _cache.RemoveUserInRoom(user, room);
+
+            // Remove from other servers' caches
+            _chatServiceProxy.RemoveUserInRoomRemote(user, room);
         }
 
         public void SetInviteCode(ChatUser user, ChatRoom room, string inviteCode)
@@ -402,9 +411,6 @@ namespace JabbR.Services
 
         public void LeaveRoom(ChatUser user, ChatRoom room)
         {
-            // Update the cache
-            _cache.RemoveUserInRoom(user, room);
-
             // Remove the user from this room
             _repository.RemoveUserRoom(user, room);
 
@@ -413,6 +419,12 @@ namespace JabbR.Services
             user.Preferences = userPreferences;
 
             _repository.CommitChanges();
+
+            // Update the cache
+            _cache.RemoveUserInRoom(user, room);
+
+            // Remove from other servers' caches
+            _chatServiceProxy.RemoveUserInRoomRemote(user, room);
         }
 
         public void AddAttachment(ChatMessage message, string fileName, string contentType, long size, UploadResult result)
