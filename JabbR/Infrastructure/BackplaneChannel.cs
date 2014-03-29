@@ -39,7 +39,7 @@ namespace JabbR.Infrastructure
             _messageBus.Subscribe(this, cursor: null, callback: HandleMessages, maxMessages: 10, state: null);
         }
 
-        public void Subscribe<T>(T instance)
+        public void Subscribe<T>(T instance) where T : IDisposable
         {
             string typeName = typeof(T).FullName;
             foreach (var method in typeof(T).GetMethods())
@@ -49,6 +49,17 @@ namespace JabbR.Infrastructure
                         Instance = instance,
                         Method = method 
                     });
+            }
+        }
+
+        public void Unsubscribe<T>(T instance) where T : IDisposable
+        {
+            foreach (var key in _subscriptions.Keys)
+            {
+                if (_subscriptions[key].Instance == (object)instance)
+                {
+                    _subscriptions.Remove(key);
+                }
             }
         }
 
@@ -70,27 +81,28 @@ namespace JabbR.Infrastructure
                 {
                     // find a subscription
                     var message = _jsonSerializer.Parse<BackplaneChannelMessage>(m.Value, m.Encoding);
-                    if (_subscriptions.ContainsKey(message.Subscription))
+
+                    BackplaneChanelRegistration subscription;
+                    if (_subscriptions.TryGetValue(message.Subscription, out subscription))
                     {
                         // deserialize parameters
-                        var subscription = _subscriptions[message.Subscription];
                         var parameters = subscription.Method.GetParameters();
                         var args = new object[parameters.Length];
-                        for (var idx=0; idx<parameters.Length; idx++)
+
+                        for (var idx = 0; idx < parameters.Length; idx++)
                         {
                             using (var paramReader = new StringReader(message.Arguments[idx]))
                             {
                                 args[idx] = _jsonSerializer.Deserialize(paramReader, parameters[idx].ParameterType);
                             }
                         }
+
                         subscription.Method.Invoke(subscription.Instance, args);
                     }
                 },
                 state: null);
 
-            var tcs = new TaskCompletionSource<bool>();
-            tcs.SetResult(true);
-            return tcs.Task;
+            return Task.FromResult(true);
         }
 
         private void SendMessage<T>(T message)

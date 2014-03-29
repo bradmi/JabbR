@@ -20,16 +20,21 @@ namespace JabbR.Services
             _backplaneChannel.Subscribe<IChatServiceProxy>(this);
         }
 
-        void IChatServiceProxy.RemoveUserInRoomRemote(ChatUser user, ChatRoom room)
+        public void RemoveUserInRoomRemote(ChatUser user, ChatRoom room)
         {
             _backplaneChannel.Invoke<IChatServiceProxy>("RemoveUserInRoom", new object[] { user.Id, room.Name });
         }
 
-        void IChatServiceProxy.RemoveUserInRoom(string userId, string roomName)
+        public void RemoveUserInRoom(string userId, string roomName)
         {
             var user = _repository.GetUserById(userId);
             var room = _repository.GetRoomByName(roomName);
             _cache.RemoveUserInRoom(user, room);
+        }
+
+        public void Dispose()
+        {
+            _backplaneChannel.Unsubscribe<IChatServiceProxy>(this);
         }
     }
 }

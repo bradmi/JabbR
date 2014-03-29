@@ -1,8 +1,10 @@
-﻿using JabbR.Models;
+﻿using System;
+
+using JabbR.Models;
 
 namespace JabbR.Services
 {
-    public interface IChatServiceProxy
+    public interface IChatServiceProxy : IDisposable
     {
         void RemoveUserInRoomRemote(ChatUser user, ChatRoom room);
 
