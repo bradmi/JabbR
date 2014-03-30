@@ -79,6 +79,12 @@ namespace JabbR.Infrastructure
                 m => _signals.Any(s => s == m.Key),
                 (s, m) =>
                 {
+                    // ignore the message if we sent it in the first place
+                    if (m.Source == _serverIdManager.ServerId)
+                    {
+                        return;
+                    }
+
                     // find a subscription
                     var message = _jsonSerializer.Parse<BackplaneChannelMessage>(m.Value, m.Encoding);
 

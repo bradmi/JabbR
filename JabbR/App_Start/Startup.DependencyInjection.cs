@@ -49,10 +49,6 @@ namespace JabbR
             kernel.Bind<IJabbrConfiguration>()
                   .ToConstant(configuration);
 
-            kernel.Bind<IChatServiceProxy>()
-                  .To<ChatServiceProxy>()
-                  .InSingletonScope();
-
             // We're doing this manually since we want the chat repository to be shared
             // between the chat service and the chat hub itself
             kernel.Bind<Chat>()
@@ -61,12 +57,11 @@ namespace JabbR
                       var resourceProcessor = context.Kernel.Get<ContentProviderProcessor>();
                       var recentMessageCache = context.Kernel.Get<IRecentMessageCache>();
                       var repository = context.Kernel.Get<IJabbrRepository>();
-                      var chatServiceProxy = context.Kernel.Get<IChatServiceProxy>();
                       var cache = context.Kernel.Get<ICache>();
                       var logger = context.Kernel.Get<ILogger>();
                       var settings = context.Kernel.Get<ApplicationSettings>();
 
-                      var service = new ChatService(cache, recentMessageCache, repository, chatServiceProxy, settings);
+                      var service = new ChatService(cache, recentMessageCache, repository, settings);
 
                       return new Chat(resourceProcessor,
                                       service,
@@ -109,8 +104,21 @@ namespace JabbR
                   .To<JabbRAuthenticationCallbackProvider>();
 
             kernel.Bind<ICache>()
+                  .To<CacheProxy>()
+                  .InSingletonScope();
+
+            // singleton defaultcache across multiple bindings
+            kernel.Bind<DefaultCache>()
                   .To<DefaultCache>()
                   .InSingletonScope();
+
+            kernel.Bind<ICache>()
+                  .ToMethod(k => k.Kernel.Get<DefaultCache>())
+                  .WhenInjectedInto<CacheProxy>();
+
+            kernel.Bind<ICache>()
+                  .ToMethod(k => k.Kernel.Get<DefaultCache>())
+                  .WhenInjectedInto<ISettingsManager>();
 
             kernel.Bind<IChatNotificationService>()
                   .To<ChatNotificationService>();

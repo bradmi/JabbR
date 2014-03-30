@@ -15,7 +15,6 @@ namespace JabbR.Services
     {
         private readonly IJabbrRepository _repository;
         private readonly ICache _cache;
-        private readonly IChatServiceProxy _chatServiceProxy;
         private readonly IRecentMessageCache _recentMessageCache;
         private readonly ApplicationSettings _settings;
 
@@ -293,11 +292,10 @@ namespace JabbR.Services
                                                                                 {"zanzibar","Zanzibar"}
                                                   };
 
-        public ChatService(ICache cache, IRecentMessageCache recentMessageCache, IJabbrRepository repository, IChatServiceProxy chatServiceProxy)
+        public ChatService(ICache cache, IRecentMessageCache recentMessageCache, IJabbrRepository repository)
             : this(cache,
                    recentMessageCache,
                    repository,
-                   chatServiceProxy, 
                    ApplicationSettings.GetDefaultSettings())
         {
         }
@@ -305,13 +303,11 @@ namespace JabbR.Services
         public ChatService(ICache cache,
                            IRecentMessageCache recentMessageCache,
                            IJabbrRepository repository,
-                           IChatServiceProxy chatServiceProxy,
                            ApplicationSettings settings)
         {
             _cache = cache;
             _recentMessageCache = recentMessageCache;
             _repository = repository;
-            _chatServiceProxy = chatServiceProxy;
             _settings = settings;
         }
 
@@ -373,9 +369,6 @@ namespace JabbR.Services
 
             // Clear the cache
             _cache.RemoveUserInRoom(user, room);
-
-            // Remove from other servers' caches
-            _chatServiceProxy.RemoveUserInRoomRemote(user, room);
         }
 
         public void SetInviteCode(ChatUser user, ChatRoom room, string inviteCode)
@@ -422,9 +415,6 @@ namespace JabbR.Services
 
             // Update the cache
             _cache.RemoveUserInRoom(user, room);
-
-            // Remove from other servers' caches
-            _chatServiceProxy.RemoveUserInRoomRemote(user, room);
         }
 
         public void AddAttachment(ChatMessage message, string fileName, string contentType, long size, UploadResult result)
